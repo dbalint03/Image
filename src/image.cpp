@@ -8,6 +8,7 @@
 #include <zlib.h>
 #include <assert.h>
 #include <chrono>
+#include <algorithm>
 
 void print_hex(const ByteReader::ByteRange hex);
 
@@ -39,7 +40,7 @@ Image::Image(std::string fileName)
         auto type = reader.read_u32_be();
         std::cout << "Chunk: " << type << std::endl;
         auto data = reader.read_bytes(length);
-        auto crc = reader.read_u32_be();
+        reader.read_u32_be();
         switch (type)
         {
         case iend:
@@ -133,47 +134,34 @@ void Image::decompress_data()
 
 int Image::reconstruct_pixels()
 {
-    std::chrono::steady_clock::time_point begin2 = std::chrono::steady_clock::now();
-    std::cout << "reconstructing pixels..." << std::endl;
-    ByteReader reader(Image::decompressed_data);
-    std::uint8_t filter = reader.read_u8_be();
-    assert(filter == 0);
     Image::no_of_channels = get_channel_number(Image::color_type);
-    pixels.resize(Image::width * Image::height * Image::no_of_channels);
-    std::cout << "here " << std::endl;
-    // std::cout << std::hex
-    //           << std::setw(2)
-    //           << std::setfill('0');
-    std::chrono::steady_clock::time_point end2 = std::chrono::steady_clock::now();
-    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end2 - begin2).count() << "[ms]" << std::endl;
 
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    const size_t row_bytes = (width * no_of_channels * bit_depth + 7) / 8;
+    const size_t row_stride = row_bytes + 1;
+
+    pixels.resize(Image::height * row_bytes);
 
     for (size_t y = 0; y < Image::height; y++)
     {
-        for (size_t x = 0; x < Image::width; x++)
-        {
-            ByteReader::ByteRange bytes = reader.read_bytes(no_of_channels);
-            // Image::pixels[(y * width + x) * Image::no_of_channels + 0] = ByteReader::to_u8_be(ByteReader::ByteRange(bytes.first, bytes.first + 1));
-            // Image::pixels[(y * width + x) * Image::no_of_channels + 1] = ByteReader::to_u8_be(ByteReader::ByteRange(bytes.first + 1, bytes.first + 2));
-            // Image::pixels[(y * width + x) * Image::no_of_channels + 2] = ByteReader::to_u8_be(ByteReader::ByteRange(bytes.first + 2, bytes.first + 3));
-            for (size_t c = 0; c < Image::no_of_channels; c++)
-            {
-                // uint8_t p = reader.read_u8_be();
-                // std::cout << "p: " << static_cast<int>(p) << std::endl;
-                Image::pixels[(y * width + x) * Image::no_of_channels + c] = ByteReader::to_u8_be(ByteReader::ByteRange(bytes.first + c, bytes.first + c + 1));
-                // Image::pixels[(y * width + x) * Image::no_of_channels + c] = p;
-            }
-        }
+        const size_t row_offset = y * row_stride;
+        assert(decompressed_data[row_offset] == 0);
+        std::copy_n(
+            decompressed_data.data() + row_offset + 1,
+            row_bytes,
+            pixels.data() + y * row_bytes);
     }
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
-    std::cout << std::dec << '\n';
+
     return 0;
 }
 
 size_t Image::get_channel_number(std::uint8_t color_type) const
 {
+    if (bit_depth != 8)
+        throw std::runtime_error("Only 8-bit PNGs are supported");
+
+    if (interlace_method != 0)
+        throw std::runtime_error("Interlaced PNGs are not supported");
+
     switch (color_type)
     {
     case 0:
