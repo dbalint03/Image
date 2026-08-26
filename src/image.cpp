@@ -1,5 +1,6 @@
 #include "image.hpp"
 #include "bytereader.hpp"
+#include "paeth.hpp"
 
 #include <zlib.h>
 
@@ -9,6 +10,7 @@
 #include <stdexcept>
 #include <assert.h>
 #include <algorithm>
+#include <cmath>
 
 void print_hex(const ByteReader::ByteRange hex);
 
@@ -131,34 +133,94 @@ std::vector<uint8_t> Image::decompress_data(std::vector<uint8_t> &compressed_dat
             buffer,
             buffer + produced);
     } while (result != Z_STREAM_END);
-    
+
     inflateEnd(&stream);
     return decompressed_data;
 }
 
 int Image::reconstruct_pixels(const std::vector<uint8_t> &decompressed_data)
 {
-    Image::no_of_channels = get_channel_number(Image::color_type);
+    Image::no_of_channels = get_no_of_channels(Image::color_type);
 
     const size_t row_bytes = Image::get_row_size();
     const size_t row_stride = row_bytes + 1;
+    const size_t bytes_per_pixel = Image::no_of_channels;
 
     pixels.resize(Image::height * row_bytes);
 
     for (size_t y = 0; y < Image::height; y++)
     {
         const size_t row_offset = y * row_stride;
-        assert(decompressed_data[row_offset] == 0);
-        std::copy_n(
-            decompressed_data.data() + row_offset + 1,
-            row_bytes,
-            pixels.data() + y * row_bytes);
+        const std::uint8_t filter_method = decompressed_data[row_offset];
+        const size_t output_offset = y * row_bytes;
+        switch (filter_method)
+        {
+        case 0: // None
+            std::copy_n(
+                decompressed_data.data() + row_offset + 1,
+                row_bytes,
+                pixels.data() + output_offset);
+            break;
+        case 1: // Sub
+        {
+            for (size_t x = 0; x < row_bytes; ++x)
+            {
+                std::uint8_t byte = decompressed_data[row_offset + 1 + x];
+                if (x < bytes_per_pixel)
+                {
+                    pixels[output_offset + x] = byte + 0;
+                }
+                else
+                {
+                    std::uint8_t left = pixels[output_offset + x - bytes_per_pixel];
+                    pixels[output_offset + x] = byte + left;
+                }
+            }
+            break;
+        }
+        case 2: // Up
+        {
+            for (size_t x = 0; x < row_bytes; ++x)
+            {
+                std::uint8_t byte = decompressed_data[row_offset + 1 + x];
+                std::uint8_t above = 0 == y ? 0 : pixels[output_offset - row_bytes + x];
+                pixels[output_offset + x] = byte + above;
+            }
+            break;
+        }
+        case 3: // Average
+        {
+            for (size_t x = 0; x < row_bytes; ++x)
+            {
+                std::uint8_t byte = decompressed_data[row_offset + 1 + x];
+                std::uint8_t above = 0 == y ? 0 : pixels[output_offset - row_bytes + x];
+                std::uint8_t left = x < bytes_per_pixel ? 0 : pixels[output_offset + x - bytes_per_pixel];
+
+                pixels[output_offset + x] = byte + std::floor((above + left) / 2);
+            }
+            break;
+        }
+        case 4: // Paeth
+        {
+            for (size_t x = 0; x < row_bytes; ++x)
+            {
+                std::uint8_t byte = decompressed_data[row_offset + 1 + x];
+                std::uint8_t above = 0 == y ? 0 : pixels[output_offset - row_bytes + x];
+                std::uint8_t left = x < bytes_per_pixel ? 0 : pixels[output_offset + x - bytes_per_pixel];
+                std::uint8_t upper_left = 0 == y || x < bytes_per_pixel ? 0 : pixels[output_offset - row_bytes + x - bytes_per_pixel];
+                pixels[output_offset + x] = byte + paeth_predictor(left, above, upper_left);
+            }
+            break;
+        }
+        default:
+            break;
+        }
     }
 
     return 0;
 }
 
-size_t Image::get_channel_number(std::uint8_t color_type) const
+size_t Image::get_no_of_channels(std::uint8_t color_type) const
 {
     if (bit_depth != 8)
         throw std::runtime_error("Only 8-bit PNGs are supported");
@@ -168,19 +230,19 @@ size_t Image::get_channel_number(std::uint8_t color_type) const
 
     switch (color_type)
     {
-    case 0:
+    case 0: // Grayscale
         return 1;
         break;
-    case 2:
+    case 2: // Truecolor
         return 3;
         break;
-    case 3:
+    case 3: // Indexed
         return 1;
         break;
-    case 4:
+    case 4: // Grayscale and alpha
         return 2;
         break;
-    case 6:
+    case 6: // Truecolor and alpha
         return 4;
         break;
     default:
@@ -202,8 +264,6 @@ void Image::print_data() const
     std::cout << "compression method: " << static_cast<int>(Image::compression_method) << std::endl;
     std::cout << "filter method: " << static_cast<int>(Image::filter_method) << std::endl;
     std::cout << "interlace method: " << static_cast<int>(Image::interlace_method) << std::endl;
-    // std::cout << "compressed data size: " << Image::compressed_data.size() << std::endl;
-    // std::cout << "decompressed data size: " << Image::decompressed_data.size() << std::endl;
 }
 
 void Image::print_pixel(int x, int y)

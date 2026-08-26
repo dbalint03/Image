@@ -35,13 +35,45 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     }
     SDL_SetRenderLogicalPresentation(renderer, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
-    Image img("E:\\Projects\\cpp\\Image\\kenny.png");
-    surface = SDL_CreateSurfaceFrom(img.width, img.height, SDL_PIXELFORMAT_RGBA32, img.pixels.data(), static_cast<int>(img.get_row_size()));
+    Image img("E:\\Projects\\cpp\\Image\\kenny2.png");
+    surface = SDL_CreateSurfaceFrom(img.width, img.height, SDL_PIXELFORMAT_INDEX8, img.pixels.data(), static_cast<int>(img.get_row_size()));
     if (!surface)
     {
         SDL_Log("Couldn't load png: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
+
+    SDL_Color colors[256];
+    SDL_Palette *palette = SDL_CreatePalette(256);
+    if (!palette)
+    {
+        SDL_Log("Couldn't create surface palette: %s", SDL_GetError());
+        SDL_DestroySurface(surface);
+        return SDL_APP_FAILURE;
+    }
+
+    for (int i = 0; i < 256; i++)
+    {
+        colors[i].r = colors[i].g = colors[i].b = i;
+        colors[i].a = SDL_ALPHA_OPAQUE;
+    }
+
+    if (!SDL_SetPaletteColors(palette, colors, 0, 256))
+    {
+        SDL_Log("Couldn't set surface palette: %s", SDL_GetError());
+        SDL_DestroyPalette(palette);
+        SDL_DestroySurface(surface);
+        return SDL_APP_FAILURE;
+    }
+
+    if (!SDL_SetSurfacePalette(surface, palette))
+    {
+        SDL_Log("Couldn't attach surface palette: %s", SDL_GetError());
+        SDL_DestroyPalette(palette);
+        SDL_DestroySurface(surface);
+        return SDL_APP_FAILURE;
+    }
+    SDL_DestroyPalette(palette);
 
     texture_width = surface->w;
     texture_height = surface->h;
