@@ -8,7 +8,6 @@
 #include <iomanip>
 #include <stdexcept>
 #include <assert.h>
-#include <chrono>
 #include <algorithm>
 
 void print_hex(const ByteReader::ByteRange hex);
@@ -34,6 +33,7 @@ Image::Image(std::string fileName)
         std::cout << "PNG!" << std::endl;
     }
     bool done = false;
+    std::vector<uint8_t> compressed_data;
     while (!done)
     {
         auto length = reader.read_u32_be();
@@ -58,14 +58,15 @@ Image::Image(std::string fileName)
             Image::interlace_method = ByteReader::to_u8_be(ByteReader::ByteRange(data.first + 12, data.first + 13));
             assert(0 == Image::compression_method);
             assert(0 == Image::filter_method);
+            compressed_data.reserve((Image::get_row_size() + 1) * Image::height);
             break;
         case idat:
             compressed_data.insert(compressed_data.end(), data.first, data.second);
             break;
         };
     }
-    decompress_data();
-    reconstruct_pixels();
+    auto decompressed_data = decompress_data(compressed_data);
+    reconstruct_pixels(decompressed_data);
 }
 
 bool Image::is_png(const ByteReader::ByteRange &signature) const
@@ -92,7 +93,7 @@ void print_hex(const ByteReader::ByteRange hex)
     std::cout << std::dec << '\n';
 }
 
-void Image::decompress_data()
+std::vector<uint8_t> Image::decompress_data(std::vector<uint8_t> &compressed_data)
 {
     std::cout << "Decompressing data..." << std::endl;
     z_stream stream{};
@@ -104,12 +105,13 @@ void Image::decompress_data()
     if (result != Z_OK)
     {
         printf("Error: inflateInit %d\n", result);
-        return;
+        throw std::runtime_error("inflateInit failed");
     }
 
     std::cout << "result: " << result << std::endl;
 
     uint8_t buffer[4096];
+    std::vector<uint8_t> decompressed_data;
     do
     {
         stream.next_out = buffer;
@@ -124,16 +126,17 @@ void Image::decompress_data()
         }
 
         std::size_t produced = sizeof(buffer) - stream.avail_out;
-        Image::decompressed_data.insert(
+        decompressed_data.insert(
             decompressed_data.end(),
             buffer,
             buffer + produced);
     } while (result != Z_STREAM_END);
-
-    std::cout << "result: " << result << std::endl;
+    
+    inflateEnd(&stream);
+    return decompressed_data;
 }
 
-int Image::reconstruct_pixels()
+int Image::reconstruct_pixels(const std::vector<uint8_t> &decompressed_data)
 {
     Image::no_of_channels = get_channel_number(Image::color_type);
 
@@ -180,6 +183,8 @@ size_t Image::get_channel_number(std::uint8_t color_type) const
     case 6:
         return 4;
         break;
+    default:
+        throw std::runtime_error("Unsupported color type");
     }
 }
 
@@ -197,8 +202,8 @@ void Image::print_data() const
     std::cout << "compression method: " << static_cast<int>(Image::compression_method) << std::endl;
     std::cout << "filter method: " << static_cast<int>(Image::filter_method) << std::endl;
     std::cout << "interlace method: " << static_cast<int>(Image::interlace_method) << std::endl;
-    std::cout << "compressed data size: " << Image::compressed_data.size() << std::endl;
-    std::cout << "decompressed data size: " << Image::decompressed_data.size() << std::endl;
+    // std::cout << "compressed data size: " << Image::compressed_data.size() << std::endl;
+    // std::cout << "decompressed data size: " << Image::decompressed_data.size() << std::endl;
 }
 
 void Image::print_pixel(int x, int y)

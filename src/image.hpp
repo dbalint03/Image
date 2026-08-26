@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 class Image
 {
@@ -15,20 +16,17 @@ private:
     std::uint8_t compression_method;
     std::uint8_t filter_method;
     std::uint8_t interlace_method;
-    
 
-    std::vector<uint8_t> decompressed_data;
-    std::vector<uint8_t> compressed_data;
-
-    int reconstruct_pixels();
+    int reconstruct_pixels(const std::vector<uint8_t> &decompressed_data);
     size_t get_channel_number(std::uint8_t color_type) const;
-    void decompress_data();
+    std::vector<uint8_t> decompress_data(std::vector<uint8_t> &compressed_data);
 
 public:
     std::uint32_t width, height;
     std::vector<uint8_t> pixels;
-    
+
     Image(std::string fileName);
+    
     uint8_t &pixel(int x, int y, int channel);
     void print_data() const;
     void print_pixel(int x, int y);
