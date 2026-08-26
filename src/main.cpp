@@ -1,37 +1,88 @@
 #include "image.hpp"
 
-#include <iostream>
-#include <iomanip>
+#define SDL_MAIN_USE_CALLBACKS 1 /* use the callbacks instead of main() */
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 
-int main(void)
+/* We will use this renderer to draw into this window every frame. */
+static SDL_Window *window = NULL;
+static SDL_Renderer *renderer = NULL;
+static SDL_Texture *texture = NULL;
+static int texture_width = 0;
+static int texture_height = 0;
+
+#define WINDOW_WIDTH 640
+#define WINDOW_HEIGHT 480
+
+/* This function runs once at startup. */
+SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
-    std::cout << "hello world!" << std::endl;
-    Image img("E:\\Projects\\cpp\\Image\\kenny.png");
-    img.print_data();
-    for (auto it = img.decompressed_data.begin(); it <= img.decompressed_data.begin() + 100; ++it)
+    SDL_Surface *surface = NULL;
+    // char *png_path = NULL;
+
+    SDL_SetAppMetadata("Example Renderer Textures", "1.0", "com.example.renderer-textures");
+
+    if (!SDL_Init(SDL_INIT_VIDEO))
     {
-        std::cout << std::hex
-                  << std::setw(2)
-                  << std::setfill('0')
-                  << static_cast<int>(*it)
-                  << ' ';
+        SDL_Log("Couldn't initialize SDL: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
     }
-    std::cout << std::dec << '\n';
-    img.print_pixel(0,0);
-    img.print_pixel(1000,1000);
-    img.print_pixel(900,1299);
-    // for (auto it = img.pixels.begin(); it <= img.pixels.begin() + 100;)
-    // {
-    //     std::cout << std::hex
-    //               << std::setw(2)
-    //               << std::setfill('0')
-    //               << static_cast<int>(*it)
-    //               << ", "
-    //               << static_cast<int>(*++it)
-    //               << ", "
-    //               << static_cast<int>(*++it)
-    //               << ' ';
-    // }
-    // std::cout << std::dec << '\n';
-    return 0;
+
+    if (!SDL_CreateWindowAndRenderer("examples/renderer/textures", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, &window, &renderer))
+    {
+        SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+    SDL_SetRenderLogicalPresentation(renderer, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+
+    Image img("E:\\Projects\\cpp\\Image\\kenny.png");
+    surface = SDL_CreateSurfaceFrom(img.width, img.height, SDL_PIXELFORMAT_RGBA32, img.pixels.data(), static_cast<int>(img.get_row_size()));
+    if (!surface)
+    {
+        SDL_Log("Couldn't load png: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    texture_width = surface->w;
+    texture_height = surface->h;
+
+    texture = SDL_CreateTextureFromSurface(renderer, surface);
+    if (!texture)
+    {
+        SDL_Log("Couldn't create static texture: %s", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    SDL_DestroySurface(surface); /* done with this, the texture has a copy of the pixels now. */
+
+    return SDL_APP_CONTINUE; /* carry on with the program! */
+}
+
+/* This function runs when a new event (mouse input, keypresses, etc) occurs. */
+SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
+{
+    if (event->type == SDL_EVENT_QUIT)
+    {
+        return SDL_APP_SUCCESS; /* end the program, reporting success to the OS. */
+    }
+    return SDL_APP_CONTINUE; /* carry on with the program! */
+}
+
+/* This function runs once per frame, and is the heart of the program. */
+SDL_AppResult SDL_AppIterate(void *appstate)
+{
+    SDL_RenderClear(renderer);
+
+    SDL_RenderTexture(renderer, texture, NULL, NULL);
+
+    SDL_RenderPresent(renderer);
+
+    return SDL_APP_CONTINUE; /* carry on with the program! */
+}
+
+/* This function runs once at shutdown. */
+void SDL_AppQuit(void *appstate, SDL_AppResult result)
+{
+    SDL_DestroyTexture(texture);
+    /* SDL will clean up the window/renderer for us. */
 }

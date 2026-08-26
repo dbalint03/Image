@@ -1,11 +1,12 @@
 #include "image.hpp"
 #include "bytereader.hpp"
 
+#include <zlib.h>
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>
 #include <stdexcept>
-#include <zlib.h>
 #include <assert.h>
 #include <chrono>
 #include <algorithm>
@@ -136,7 +137,7 @@ int Image::reconstruct_pixels()
 {
     Image::no_of_channels = get_channel_number(Image::color_type);
 
-    const size_t row_bytes = (width * no_of_channels * bit_depth + 7) / 8;
+    const size_t row_bytes = Image::get_row_size();
     const size_t row_stride = row_bytes + 1;
 
     pixels.resize(Image::height * row_bytes);
@@ -213,4 +214,9 @@ void Image::print_pixel(int x, int y)
                << " ,"
                << static_cast<int>(Image::pixel(x, y, 3))
                << " ";
+}
+
+size_t Image::get_row_size()
+{
+    return (Image::width * Image::no_of_channels * Image::bit_depth + 7) / 8;
 }

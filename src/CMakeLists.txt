@@ -11,6 +11,7 @@ target_link_libraries(Image
   PRIVATE
     ByteReader
     ZLIB::ZLIB
+    SDL3::SDL3
 )
 
 add_custom_command(TARGET Image POST_BUILD

@@ -15,8 +15,9 @@ private:
     std::uint8_t compression_method;
     std::uint8_t filter_method;
     std::uint8_t interlace_method;
-    std::uint32_t width, height;
-    std::vector<uint8_t> pixels;
+    
+
+    std::vector<uint8_t> decompressed_data;
     std::vector<uint8_t> compressed_data;
 
     int reconstruct_pixels();
@@ -24,10 +25,12 @@ private:
     void decompress_data();
 
 public:
-    std::vector<uint8_t> decompressed_data;
-
+    std::uint32_t width, height;
+    std::vector<uint8_t> pixels;
+    
     Image(std::string fileName);
     uint8_t &pixel(int x, int y, int channel);
     void print_data() const;
     void print_pixel(int x, int y);
+    size_t get_row_size();
 };
