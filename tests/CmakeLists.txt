@@ -1,0 +1,13 @@
+add_executable(ImageTests
+  bytereader_tests.cpp
+#   image_filter_tests.cpp
+)
+
+target_link_libraries(ImageTests
+  PRIVATE
+    GTest::gtest_main
+    ByteReader
+)
+
+include(GoogleTest)
+gtest_discover_tests(ImageTests)

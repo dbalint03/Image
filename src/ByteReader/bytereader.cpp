@@ -23,6 +23,9 @@ std::uint32_t ByteReader::to_u32_be(ByteRange bytes)
 
 ByteReader::ByteRange ByteReader::read_bytes(std::size_t n)
 {
+    if (n == 0)
+        throw std::runtime_error("Cannot read 0 bytes");
+
     if (n > data.size() - pos)
         throw std::runtime_error("Unexpected end of file");
 

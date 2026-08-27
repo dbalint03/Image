@@ -25,4 +25,9 @@ public:
 
     ByteReader(std::vector<std::uint8_t> &_data) : data(_data) {};
     bool eof() const;
+
+    std::size_t get_pos() const
+    {
+        return pos;
+    }
 };
