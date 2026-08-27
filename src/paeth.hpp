@@ -4,7 +4,7 @@
 
 /// @brief Paeth Predictor function
 /// @tparam T
-/// @param a - laft pixel
+/// @param a - left pixel
 /// @param b - above pixel
 /// @param c - upper left pixel
 /// @return
@@ -28,17 +28,3 @@ inline T paeth_predictor(const T a, const T b, const T c)
         return c;
     }
 }
-
-//    function PaethPredictor (a, b, c)
-//    begin
-//         ; a = left, b = above, c = upper left
-//         p := a + b - c        ; initial estimate
-//         pa := abs(p - a)      ; distances to a, b, c
-//         pb := abs(p - b)
-//         pc := abs(p - c)
-//         ; return nearest of a,b,c,
-//         ; breaking ties in order a,b,c.
-//         if pa <= pb AND pa <= pc then return a
-//         else if pb <= pc then return b
-//         else return c
-//    end

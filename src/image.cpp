@@ -55,11 +55,9 @@ Image::Image(std::string fileName)
             Image::height = ByteReader::to_u32_be(ByteReader::ByteRange(data.first + 4, data.first + 8));
             Image::bit_depth = ByteReader::to_u8_be(ByteReader::ByteRange(data.first + 8, data.first + 9));
             Image::color_type = ByteReader::to_u8_be(ByteReader::ByteRange(data.first + 9, data.first + 10));
-            Image::compression_method = ByteReader::to_u8_be(ByteReader::ByteRange(data.first + 10, data.first + 11));
-            Image::filter_method = ByteReader::to_u8_be(ByteReader::ByteRange(data.first + 11, data.first + 12));
+            assert(0 == ByteReader::to_u8_be(ByteReader::ByteRange(data.first + 10, data.first + 11)));
+            assert(0 == ByteReader::to_u8_be(ByteReader::ByteRange(data.first + 11, data.first + 12)));
             Image::interlace_method = ByteReader::to_u8_be(ByteReader::ByteRange(data.first + 12, data.first + 13));
-            assert(0 == Image::compression_method);
-            assert(0 == Image::filter_method);
             compressed_data.reserve((Image::get_row_size() + 1) * Image::height);
             break;
         case idat:
@@ -212,8 +210,10 @@ int Image::reconstruct_pixels(const std::vector<uint8_t> &decompressed_data)
             }
             break;
         }
-        default:
-            break;
+        default: // only 0 - 4 are valid filter types
+            throw std::runtime_error(
+                "Unknown filter type: " +
+                std::to_string(static_cast<unsigned int>(filter_method)));
         }
     }
 
@@ -253,17 +253,6 @@ size_t Image::get_no_of_channels(std::uint8_t color_type) const
 uint8_t &Image::pixel(int x, int y, int channel)
 {
     return pixels[(y * width + x) * Image::no_of_channels + channel];
-}
-
-void Image::print_data() const
-{
-    std::cout << "width: " << Image::width << std::endl;
-    std::cout << "height: " << Image::height << std::endl;
-    std::cout << "bit depth: " << static_cast<int>(Image::bit_depth) << std::endl;
-    std::cout << "color type: " << static_cast<int>(Image::color_type) << std::endl;
-    std::cout << "compression method: " << static_cast<int>(Image::compression_method) << std::endl;
-    std::cout << "filter method: " << static_cast<int>(Image::filter_method) << std::endl;
-    std::cout << "interlace method: " << static_cast<int>(Image::interlace_method) << std::endl;
 }
 
 void Image::print_pixel(int x, int y)

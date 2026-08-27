@@ -12,8 +12,6 @@ private:
     size_t no_of_channels;
     std::uint8_t bit_depth;
     std::uint8_t color_type;
-    std::uint8_t compression_method;
-    std::uint8_t filter_method;
     std::uint8_t interlace_method;
 
     int reconstruct_pixels(const std::vector<uint8_t> &decompressed_data);
@@ -27,7 +25,6 @@ public:
     Image(std::string fileName);
 
     uint8_t &pixel(int x, int y, int channel);
-    void print_data() const;
     void print_pixel(int x, int y);
     size_t get_row_size();
 };
