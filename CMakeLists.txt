@@ -20,6 +20,8 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
+find_package(ZLIB CONFIG REQUIRED)
+
 add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
 add_subdirectory(src)
 add_subdirectory(tests)

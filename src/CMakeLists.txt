@@ -5,8 +5,6 @@ add_executable(Image
   image.cpp
 )
 
-find_package(ZLIB CONFIG REQUIRED)
-
 target_link_libraries(Image
   PRIVATE
     ByteReader

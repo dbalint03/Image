@@ -1,6 +1,24 @@
+add_library(ImageLib
+  ${PROJECT_SOURCE_DIR}/src/image.cpp
+)
+
+target_include_directories(ImageLib
+  PUBLIC
+    ${PROJECT_SOURCE_DIR}/src
+    ${ZLIB_INCLUDE_DIRS}
+)
+
+target_link_libraries(ImageLib
+  PUBLIC
+    ByteReader
+    ZLIB::ZLIB
+    SDL3::SDL3
+)
+
 add_executable(ImageTests
   bytereader_tests.cpp
   paeth_tests.cpp
+  image_tests.cpp
 )
 
 target_include_directories(ImageTests
@@ -10,6 +28,7 @@ target_include_directories(ImageTests
 
 target_link_libraries(ImageTests
   PRIVATE
+    ImageLib
     GTest::gtest_main
     ByteReader
 )

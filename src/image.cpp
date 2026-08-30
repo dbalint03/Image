@@ -16,32 +16,43 @@ void print_hex(const ByteReader::ByteRange hex);
 
 Image::Image(std::string fileName)
 {
+    std::ifstream inputFile(fileName, std::ios::binary);
+    std::vector<unsigned char> file_data;
+    for (char byte; inputFile.get(byte);)
+    {
+        file_data.push_back(static_cast<unsigned char>(byte));
+    }
+
+    auto compressed_data = parse_png(file_data);
+    auto decompressed_data = decompress_data(compressed_data);
+    reconstruct_pixels(decompressed_data);
+}
+
+Image::Image(std::vector<std::uint8_t> file_data)
+{
+    auto compressed_data = parse_png(file_data);
+    auto decompressed_data = decompress_data(compressed_data);
+    reconstruct_pixels(decompressed_data);
+}
+
+std::vector<uint8_t> Image::parse_png(std::vector<std::uint8_t> &file_data)
+{
     constexpr std::uint32_t iend = 0x49454E44; // "IEND" in big-endian order
     constexpr std::uint32_t ihdr = 0x49484452; // "IHDR" in big-endian order
     constexpr std::uint32_t idat = 0x49444154; // "IDAT" in big-endian order
 
-    std::ifstream inputFile(fileName, std::ios::binary);
-    std::vector<unsigned char> fileData;
-    for (char byte; inputFile.get(byte);)
-    {
-        fileData.push_back(static_cast<unsigned char>(byte));
-    }
-
-    ByteReader reader(fileData);
+    ByteReader reader(file_data);
     auto signature = reader.read_bytes(8);
-    print_hex(signature);
-    if (is_png(signature))
+    if (!is_png(signature))
     {
-        std::cout << "PNG!" << std::endl;
+        throw std::runtime_error("Not a PNG file");
     }
     bool done = false;
     std::vector<uint8_t> compressed_data;
     while (!done)
     {
         auto length = reader.read_u32_be();
-        std::cout << " Length: " << length << '\n';
         auto type = reader.read_u32_be();
-        std::cout << "Chunk: " << type << std::endl;
         ByteReader::ByteRange data;
         if (length > 0)
         {
@@ -51,7 +62,6 @@ Image::Image(std::string fileName)
         switch (type)
         {
         case iend:
-            std::cout << "end of file" << std::endl;
             done = true;
             break;
         case ihdr:
@@ -62,6 +72,8 @@ Image::Image(std::string fileName)
             assert(0 == ByteReader::to_u8_be(ByteReader::ByteRange(data.first + 10, data.first + 11)));
             assert(0 == ByteReader::to_u8_be(ByteReader::ByteRange(data.first + 11, data.first + 12)));
             Image::interlace_method = ByteReader::to_u8_be(ByteReader::ByteRange(data.first + 12, data.first + 13));
+
+            Image::no_of_channels = Image::get_no_of_channels(Image::color_type);
             compressed_data.reserve((Image::get_row_size() + 1) * Image::height);
             break;
         case idat:
@@ -69,8 +81,7 @@ Image::Image(std::string fileName)
             break;
         };
     }
-    auto decompressed_data = decompress_data(compressed_data);
-    reconstruct_pixels(decompressed_data);
+    return compressed_data;
 }
 
 bool Image::is_png(const ByteReader::ByteRange &signature) const
@@ -99,20 +110,16 @@ void print_hex(const ByteReader::ByteRange hex)
 
 std::vector<uint8_t> Image::decompress_data(std::vector<uint8_t> &compressed_data)
 {
-    std::cout << "Decompressing data..." << std::endl;
     z_stream stream{};
     stream.next_in = compressed_data.data();
     stream.avail_in = compressed_data.size();
 
-    std::cout << "result: " << std::endl;
     int result = inflateInit(&stream);
     if (result != Z_OK)
     {
         printf("Error: inflateInit %d\n", result);
         throw std::runtime_error("inflateInit failed");
     }
-
-    std::cout << "result: " << result << std::endl;
 
     uint8_t buffer[4096];
     std::vector<uint8_t> decompressed_data;
@@ -140,9 +147,8 @@ std::vector<uint8_t> Image::decompress_data(std::vector<uint8_t> &compressed_dat
     return decompressed_data;
 }
 
-int Image::reconstruct_pixels(const std::vector<uint8_t> &decompressed_data)
+void Image::reconstruct_pixels(const std::vector<uint8_t> &decompressed_data)
 {
-    Image::no_of_channels = get_no_of_channels(Image::color_type);
 
     const size_t row_bytes = Image::get_row_size();
     const size_t row_stride = row_bytes + 1;
@@ -220,8 +226,6 @@ int Image::reconstruct_pixels(const std::vector<uint8_t> &decompressed_data)
                 std::to_string(static_cast<unsigned int>(filter_method)));
         }
     }
-
-    return 0;
 }
 
 size_t Image::get_no_of_channels(std::uint8_t color_type) const
