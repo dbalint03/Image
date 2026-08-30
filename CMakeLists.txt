@@ -21,7 +21,9 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 find_package(ZLIB CONFIG REQUIRED)
+find_package(OpenGL REQUIRED)
 
 add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
+add_subdirectory(vendored/imgui EXCLUDE_FROM_ALL)
 add_subdirectory(src)
 add_subdirectory(tests)

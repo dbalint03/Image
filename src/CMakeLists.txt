@@ -10,6 +10,8 @@ target_link_libraries(Image
     ByteReader
     ZLIB::ZLIB
     SDL3::SDL3
+    OpenGL::GL
+    imgui
 )
 
 add_custom_command(TARGET Image POST_BUILD
