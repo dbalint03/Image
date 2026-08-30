@@ -42,7 +42,11 @@ Image::Image(std::string fileName)
         std::cout << " Length: " << length << '\n';
         auto type = reader.read_u32_be();
         std::cout << "Chunk: " << type << std::endl;
-        auto data = reader.read_bytes(length);
+        ByteReader::ByteRange data;
+        if (length > 0)
+        {
+            data = reader.read_bytes(length);
+        }
         reader.read_u32_be();
         switch (type)
         {
