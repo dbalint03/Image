@@ -1,6 +1,11 @@
 add_executable(ImageTests
   bytereader_tests.cpp
-#   image_filter_tests.cpp
+  paeth_tests.cpp
+)
+
+target_include_directories(ImageTests
+  PRIVATE
+    ${PROJECT_SOURCE_DIR}/src
 )
 
 target_link_libraries(ImageTests
